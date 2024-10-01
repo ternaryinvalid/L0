@@ -3,14 +3,15 @@ app:
   version: '1.0.0'
 postgres:
   host: 'localhost'
-  port: '5432'
+  port: '5588'
   user: 'postgres'
-  password: 'qwerty'
+  password: 'postgres'
   name: 'l0'
-  pg_driver : 'pq'
+  schema: 'orders'
+  
 http:
   host: 'localhost'
-  port: '8080'
+  port: '8000'
 kafka:
   bootstrap_servers: 'localhost:9092' 
-  topic: 'main-topic' 
+  topic: 'orders'

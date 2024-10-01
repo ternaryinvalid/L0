@@ -29,8 +29,8 @@ type DB struct {
 	Port     string `yaml:"port" env-required:"true" env:"PG_PORT"`
 	User     string `yaml:"user" env-required:"true" env:"PG_USER"`
 	Password string `yaml:"password" env-required:"true" env:"PG_PASSWORD"`
-	DBName   string `yaml:"name" env:"PG_NAME" env-required:"true" `
-	PgDriver string `yaml:"pg_driver" env:"PG_PG_DRIVER" env-required:"true" `
+	Name     string `yaml:"name" env:"PG_NAME" env-required:"true" `
+	Schema   string `yaml:"schema" env:"PG_SCHEMA" env-required:"true" `
 }
 
 type Kafka struct {

@@ -30,7 +30,7 @@ services:
   postgres:
     image: postgres:14.0
     environment:
-      POSTGRES_DB: 'main'
+      POSTGRES_DB: 'l0'
       POSTGRES_USER: 'postgres'
       POSTGRES_PASSWORD: 'postgres'
     ports:

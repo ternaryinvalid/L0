@@ -9,56 +9,60 @@ import (
 	"github.com/jackc/pgx/v4/pgxpool"
 )
 
-type Postgres struct {
-	pool *pgxpool.Pool
+type OrdersRepository struct {
+	pool   *pgxpool.Pool
+	schema string
 }
 
 func Connect(cfg *config.DB) (*pgxpool.Pool, error) {
 
 	conn := fmt.Sprintf("postgres://%s:%s@%s:%s/%s",
-		cfg.User, cfg.Password, cfg.Host, cfg.Port, cfg.DBName)
+		cfg.User, cfg.Password, cfg.Host, cfg.Port, cfg.Name)
 	return pgxpool.Connect(context.Background(), conn)
 }
 
-func NewDB(pool *pgxpool.Pool) *Postgres {
-	return &Postgres{
-		pool: pool,
+func NewDB(pool *pgxpool.Pool, schema string) *OrdersRepository {
+	return &OrdersRepository{
+		pool:   pool,
+		schema: schema,
 	}
 }
 
-func (db *Postgres) CreateTable() error {
-	_, err := db.pool.Exec(context.Background(), `
-	CREATE TABLE IF NOT EXISTS main (
+func (db *OrdersRepository) CreateSchemaAndTable() error {
+	_, err := db.pool.Exec(context.Background(), fmt.Sprintf(`
+	CREATE SCHEMA IF NOT EXISTS %s;
+	CREATE TABLE IF NOT EXISTS %s.orders (
 		order_uid VARCHAR(255) PRIMARY KEY,
-            track_number VARCHAR(255),
-            entry VARCHAR(255),
-            delivery_info JSONB,
-            payment_info JSONB,
-            items JSONB,
-            locale VARCHAR(255),
-            internal_signature VARCHAR(255),
-  				customer_id VARCHAR(255),
-  				delivery_service VARCHAR(255),
-  				shardkey VARCHAR(255),
-  				sm_id INTEGER,
-            date_created VARCHAR(255),
-            oof_shard VARCHAR(255)
+        track_number VARCHAR(255),
+        entry VARCHAR(255),
+        delivery_info JSONB,
+        payment_info JSONB,
+        items JSONB,
+        locale VARCHAR(255),
+        internal_signature VARCHAR(255),
+        customer_id VARCHAR(255),
+        delivery_service VARCHAR(255),
+        shardkey VARCHAR(255),
+        sm_id INTEGER,
+        date_created VARCHAR(255),
+        oof_shard VARCHAR(255)
 	)
-	`)
-
+	`, db.schema, db.schema))
 	return err
 }
 
-func (db *Postgres) SaveOrder(order models.OrderJSON) error {
-	_, err := db.pool.Exec(context.Background(), `
-	INSERT INTO main (order_uid, track_number, entry, delivery_info, payment_info, items, locale, internal_signature, customer_id, delivery_service, shardkey, sm_id, date_created, oof_shard)
+func (db *OrdersRepository) SaveOrder(order models.OrderJSON) error {
+	query := fmt.Sprintf(`
+	INSERT INTO %s.orders (order_uid, track_number, entry, delivery_info, payment_info, items, locale, internal_signature, customer_id, delivery_service, shardkey, sm_id, date_created, oof_shard)
 	VALUES($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)
-	`, order.Order_uid, order.Track_number, order.Entry, order.Delivery, order.Payments, order.Items, order.Locale, order.Internal_signature, order.Customer_id, order.Delivery_service, order.Shardkey, order.Sm_id, order.Date_created, order.OOF_shard)
+	`, db.schema)
+
+	_, err := db.pool.Exec(context.Background(), query, order.OrderUid, order.TrackNumber, order.Entry, order.Delivery, order.Payments, order.Items, order.Locale, order.InternalSignature, order.CustomerId, order.DeliveryService, order.Shardkey, order.Sm_id, order.Date_created, order.OOF_shard)
 	return err
 }
 
-func (db *Postgres) GetAllOrders() (orders []models.OrderJSON, err error) {
-	res, err := db.pool.Query(context.Background(), `SELECT * FROM main`)
+func (db *OrdersRepository) GetAllOrders() (orders []models.OrderJSON, err error) {
+	res, err := db.pool.Query(context.Background(), `SELECT * FROM orders.orders`)
 
 	if err != nil {
 		fmt.Printf("Query error: %v", err)
@@ -69,16 +73,16 @@ func (db *Postgres) GetAllOrders() (orders []models.OrderJSON, err error) {
 	for res.Next() {
 		var executeOrder models.OrderJSON
 		err := res.Scan(
-			&executeOrder.Order_uid,
-			&executeOrder.Track_number,
+			&executeOrder.OrderUid,
+			&executeOrder.TrackNumber,
 			&executeOrder.Entry,
 			&executeOrder.Delivery,
 			&executeOrder.Payments,
 			&executeOrder.Items,
 			&executeOrder.Locale,
-			&executeOrder.Internal_signature,
-			&executeOrder.Customer_id,
-			&executeOrder.Delivery_service,
+			&executeOrder.InternalSignature,
+			&executeOrder.CustomerId,
+			&executeOrder.DeliveryService,
 			&executeOrder.Shardkey,
 			&executeOrder.Sm_id,
 			&executeOrder.Date_created,
@@ -100,20 +104,20 @@ func (db *Postgres) GetAllOrders() (orders []models.OrderJSON, err error) {
 	return orders, nil
 }
 
-func (db *Postgres) GetOrderByUID(uid string) (models.OrderJSON, error) {
+func (db *OrdersRepository) GetOrderByUID(uid string) (models.OrderJSON, error) {
 
 	var executeOrder models.OrderJSON
-	err := db.pool.QueryRow(context.Background(), `SELECT * FROM main WHERE order_uid=$1`, uid).Scan(
-		&executeOrder.Order_uid,
-		&executeOrder.Track_number,
+	err := db.pool.QueryRow(context.Background(), `SELECT * FROM orders.orders WHERE order_uid=$1`, uid).Scan(
+		&executeOrder.OrderUid,
+		&executeOrder.TrackNumber,
 		&executeOrder.Entry,
 		&executeOrder.Delivery,
 		&executeOrder.Payments,
 		&executeOrder.Items,
 		&executeOrder.Locale,
-		&executeOrder.Internal_signature,
-		&executeOrder.Customer_id,
-		&executeOrder.Delivery_service,
+		&executeOrder.InternalSignature,
+		&executeOrder.CustomerId,
+		&executeOrder.DeliveryService,
 		&executeOrder.Shardkey,
 		&executeOrder.Sm_id,
 		&executeOrder.Date_created,
