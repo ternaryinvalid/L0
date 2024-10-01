@@ -32,8 +32,6 @@ services:
     environment:
       POSTGRES_DB: 'l0'
       POSTGRES_USER: 'postgres'
-      POSTGRES_PASSWORD: 'postgres'
-    volumes:
-      - ./init-db.sql:/docker-entrypoint-initdb.d/init-db.sql
+      POSTGRES_PASSWORD: 'qwerty'
     ports:
-      - '127.0.0.1:5588:5432'
+      - '127.0.0.1:5433:5432'
