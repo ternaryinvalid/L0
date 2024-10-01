@@ -7,6 +7,7 @@ import (
 	"L0/internal/database"
 	"L0/internal/generate"
 	"L0/internal/kafka"
+	"context"
 	"fmt"
 	"log"
 	"time"
@@ -46,7 +47,8 @@ func Run(cfg *config.Config) {
 	}
 
 	// Подключаемся к PostgreSQL
-	conn, err := database.Connect(&cfg.DB)
+	ctx := context.Background()
+	conn, err := database.Connect(&cfg.DB, ctx)
 	if err != nil {
 		log.Fatalf("error connecting to PostgreSQL: %v", err)
 	}
@@ -55,14 +57,14 @@ func Run(cfg *config.Config) {
 	db := database.NewDB(conn, cfg.DB.Schema)
 
 	// Создаем таблицу и схему, если их нет
-	err = db.CreateSchemaAndTable()
+	err = db.CreateSchemaAndTable(ctx)
 	if err != nil {
 		log.Fatalf("error creating table: %v", err)
 	}
 
 	// Инициализируем кэш
 	cache := cache.NewCache(db)
-	cache.Preload()
+	cache.Preload(ctx)
 
 	// Запускаем горутину для публикации заказов
 	go func() {
@@ -88,7 +90,7 @@ func Run(cfg *config.Config) {
 			}
 
 			fmt.Println("Order received")
-			cache.AddCache(*order) // Добавляем заказ в кэш
+			cache.AddCache(*order, ctx) // Добавляем заказ в кэш
 			time.Sleep(30 * time.Second)
 		}
 	}()

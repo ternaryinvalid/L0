@@ -3,6 +3,7 @@ package cache
 import (
 	"L0/internal/database"
 	"L0/internal/models"
+	"context"
 	"fmt"
 	"log"
 	"sync"
@@ -33,8 +34,8 @@ func (c *Cache) GetAllOrders() map[string]*models.OrderJSON {
 
 	return c.data
 }
-func (c *Cache) AddCache(order models.OrderJSON) {
-	err := c.db.SaveOrder(order)
+func (c *Cache) AddCache(order models.OrderJSON, ctx context.Context) {
+	err := c.db.SaveOrder(order, ctx)
 	if err != nil {
 		log.Printf("Cannot insert order: %v\n", err)
 	}
@@ -45,8 +46,8 @@ func (c *Cache) AddCache(order models.OrderJSON) {
 	fmt.Printf("Cache written: %s\n", order.OrderUid)
 }
 
-func (c *Cache) Preload() error {
-	array, err := c.db.GetAllOrders()
+func (c *Cache) Preload(ctx context.Context) error {
+	array, err := c.db.GetAllOrders(ctx)
 	if err != nil {
 		return err
 	}
