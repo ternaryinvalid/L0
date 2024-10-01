@@ -50,6 +50,7 @@ func Run(cfg *config.Config) {
 	if err != nil {
 		log.Fatalf("error connecting to PostgreSQL: %v", err)
 	}
+
 	defer conn.Close()
 	db := database.NewDB(conn, cfg.DB.Schema)
 
@@ -72,6 +73,7 @@ func Run(cfg *config.Config) {
 			if err != nil {
 				log.Printf("error publishing: %v\n", err)
 			}
+
 			time.Sleep(30 * time.Second)
 		}
 	}()
@@ -100,4 +102,5 @@ func Run(cfg *config.Config) {
 	if serverErr != nil {
 		log.Fatalf("error starting server: %v", serverErr)
 	}
+
 }

@@ -116,5 +116,6 @@ func getOrderItems(order *models.OrderJSON) {
 // Генерация хэша
 func hash32() string {
 	sum := md5.Sum([]byte(strconv.Itoa(rand.Intn(150000))))
+
 	return hex.EncodeToString(sum[:])
 }

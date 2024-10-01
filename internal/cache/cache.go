@@ -27,7 +27,6 @@ func (c *Cache) GetOrder(uid string) *models.OrderJSON {
 	defer c.mu.RUnlock()
 
 	return c.data[uid]
-
 }
 
 func (c *Cache) GetAllOrders() map[string]*models.OrderJSON {
@@ -48,15 +47,17 @@ func (c *Cache) AddCache(order models.OrderJSON) {
 
 func (c *Cache) Preload() error {
 	array, err := c.db.GetAllOrders()
-
 	if err != nil {
 		return err
 	}
 
 	c.mu.RLock()
+
 	defer c.mu.RUnlock()
+
 	for _, order := range array {
 		c.data[order.OrderUid] = &order
 	}
+
 	return nil
 }
