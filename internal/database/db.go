@@ -14,11 +14,11 @@ type OrdersRepository struct {
 	schema string
 }
 
-func Connect(cfg *config.DB, ctx context.Context) (*pgxpool.Pool, error) {
+func Connect(cfg *config.DB) (*pgxpool.Pool, error) {
 
 	conn := fmt.Sprintf("postgres://%s:%s@%s:%s/%s",
 		cfg.User, cfg.Password, cfg.Host, cfg.Port, cfg.Name)
-	return pgxpool.Connect(ctx, conn)
+	return pgxpool.Connect(context.Background(), conn)
 }
 
 func NewDB(pool *pgxpool.Pool, schema string) *OrdersRepository {
@@ -28,10 +28,10 @@ func NewDB(pool *pgxpool.Pool, schema string) *OrdersRepository {
 	}
 }
 
-func (db *OrdersRepository) CreateSchemaAndTable(ctx context.Context) error {
-
-	_, err := db.pool.Exec(context.Background(), `
-	CREATE TABLE IF NOT EXISTS orders.orders (
+func (db *OrdersRepository) CreateSchemaAndTable() error {
+	_, err := db.pool.Exec(context.Background(), fmt.Sprintf(`
+	CREATE SCHEMA IF NOT EXISTS %s;
+	CREATE TABLE IF NOT EXISTS %s.orders (
 		order_uid VARCHAR(255) PRIMARY KEY,
         track_number VARCHAR(255),
         entry VARCHAR(255),
@@ -47,19 +47,22 @@ func (db *OrdersRepository) CreateSchemaAndTable(ctx context.Context) error {
         date_created VARCHAR(255),
         oof_shard VARCHAR(255)
 	)
-	`)
+	`, db.schema, db.schema))
 	return err
 }
 
-func (db *OrdersRepository) SaveOrder(order models.OrderJSON, ctx context.Context) error {
-	_, err := db.pool.Exec(ctx, `
-	INSERT INTO orders.orders VALUES($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)
-	`, order.OrderUid, order.TrackNumber, order.Entry, order.Delivery, order.Payments, order.Items, order.Locale, order.InternalSignature, order.CustomerId, order.DeliveryService, order.Shardkey, order.Sm_id, order.Date_created, order.OOF_shard)
+func (db *OrdersRepository) SaveOrder(order models.OrderJSON) error {
+	query := fmt.Sprintf(`
+	INSERT INTO %s.orders (order_uid, track_number, entry, delivery_info, payment_info, items, locale, internal_signature, customer_id, delivery_service, shardkey, sm_id, date_created, oof_shard)
+	VALUES($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)
+	`, db.schema)
+
+	_, err := db.pool.Exec(context.Background(), query, order.OrderUid, order.TrackNumber, order.Entry, order.Delivery, order.Payments, order.Items, order.Locale, order.InternalSignature, order.CustomerId, order.DeliveryService, order.Shardkey, order.Sm_id, order.Date_created, order.OOF_shard)
 	return err
 }
 
-func (db *OrdersRepository) GetAllOrders(ctx context.Context) (orders []models.OrderJSON, err error) {
-	res, err := db.pool.Query(ctx, `SELECT * FROM orders.orders`)
+func (db *OrdersRepository) GetAllOrders() (orders []models.OrderJSON, err error) {
+	res, err := db.pool.Query(context.Background(), `SELECT * FROM orders.orders`)
 
 	if err != nil {
 		fmt.Printf("Query error: %v", err)
@@ -101,10 +104,10 @@ func (db *OrdersRepository) GetAllOrders(ctx context.Context) (orders []models.O
 	return orders, nil
 }
 
-func (db *OrdersRepository) GetOrderByUID(uid string, ctx context.Context) (models.OrderJSON, error) {
+func (db *OrdersRepository) GetOrderByUID(uid string) (models.OrderJSON, error) {
 
 	var executeOrder models.OrderJSON
-	err := db.pool.QueryRow(ctx, `SELECT * FROM orders.orders WHERE order_uid=$1`, uid).Scan(
+	err := db.pool.QueryRow(context.Background(), `SELECT * FROM orders.orders WHERE order_uid=$1`, uid).Scan(
 		&executeOrder.OrderUid,
 		&executeOrder.TrackNumber,
 		&executeOrder.Entry,
