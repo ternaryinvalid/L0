@@ -8,6 +8,7 @@ postgres:
   password: 'qwerty'
   name: 'l0'
   pg_driver : 'pq'
+  schema : 'public'
 http:
   host: 'localhost'
   port: '8080'

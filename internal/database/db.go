@@ -16,8 +16,23 @@ type Postgres struct {
 func Connect(cfg *config.DB) (*pgxpool.Pool, error) {
 	conn := fmt.Sprintf("postgres://%s:%s@%s:%s/%s",
 		cfg.User, cfg.Password, cfg.Host, cfg.Port, cfg.DBName)
-	return pgxpool.Connect(context.Background(), conn)
+
+	// Подключаемся к базе данных
+	pool, err := pgxpool.Connect(context.Background(), conn)
+	if err != nil {
+		return nil, err
+	}
+
+	// Устанавливаем search_path
+	_, err = pool.Exec(context.Background(), fmt.Sprintf("SET search_path TO %s", cfg.Schema))
+	if err != nil {
+		pool.Close() // Закрываем пул, если произошла ошибка
+		return nil, err
+	}
+
+	return pool, nil
 }
+
 func NewDB(pool *pgxpool.Pool) *Postgres {
 	return &Postgres{
 		pool: pool,
@@ -25,8 +40,7 @@ func NewDB(pool *pgxpool.Pool) *Postgres {
 }
 func (db *Postgres) CreateTable() error {
 	_, err := db.pool.Exec(context.Background(), `
-	CREATE SCHEMA IF NOT EXISTS orders;
-	CREATE TABLE IF NOT EXISTS orders.main (
+	CREATE TABLE IF NOT EXISTS main (
 		order_uid VARCHAR(255) PRIMARY KEY,
             track_number VARCHAR(255),
             entry VARCHAR(255),
@@ -47,13 +61,13 @@ func (db *Postgres) CreateTable() error {
 }
 func (db *Postgres) SaveOrder(order models.OrderJSON) error {
 	_, err := db.pool.Exec(context.Background(), `
-	INSERT INTO orders.main (order_uid, track_number, entry, delivery_info, payment_info, items, locale, internal_signature, customer_id, delivery_service, shardkey, sm_id, date_created, oof_shard)
+	INSERT INTO main (order_uid, track_number, entry, delivery_info, payment_info, items, locale, internal_signature, customer_id, delivery_service, shardkey, sm_id, date_created, oof_shard)
 	VALUES($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)
 	`, order.OrderUid, order.TrackNumber, order.Entry, order.Delivery, order.Payments, order.Items, order.Locale, order.InternalSignature, order.CustomerId, order.DeliveryService, order.Shardkey, order.SmId, order.DateCreated, order.OOFShard)
 	return err
 }
 func (db *Postgres) GetAllOrders() (orders []models.OrderJSON, err error) {
-	res, err := db.pool.Query(context.Background(), `SELECT * FROM orders.main`)
+	res, err := db.pool.Query(context.Background(), `SELECT * FROM main`)
 	if err != nil {
 		fmt.Printf("Query error: %v", err)
 		return nil, err
@@ -90,7 +104,7 @@ func (db *Postgres) GetAllOrders() (orders []models.OrderJSON, err error) {
 }
 func (db *Postgres) GetOrderByUID(uid string) (models.OrderJSON, error) {
 	var executeOrder models.OrderJSON
-	err := db.pool.QueryRow(context.Background(), `SELECT * FROM orders.main WHERE order_uid=$1`, uid).Scan(
+	err := db.pool.QueryRow(context.Background(), `SELECT * FROM main WHERE order_uid=$1`, uid).Scan(
 		&executeOrder.OrderUid,
 		&executeOrder.TrackNumber,
 		&executeOrder.Entry,

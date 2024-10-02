@@ -28,6 +28,7 @@ type DB struct {
 	Password string `yaml:"password" env-required:"true" env:"PG_PASSWORD"`
 	DBName   string `yaml:"name" env:"PG_NAME" env-required:"true" `
 	PgDriver string `yaml:"pg_driver" env:"PG_PG_DRIVER" env-required:"true" `
+	Schema   string `yaml:"schema" env:"PG_SCHEMA" env-required:"true" `
 }
 type Kafka struct {
 	BootstrapServers string `env-required:"true" yaml:"bootstrap_servers" env:"KAFKA_BOOTSTRAP_SERVERS"`

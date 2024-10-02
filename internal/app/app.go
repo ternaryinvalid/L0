@@ -7,8 +7,14 @@ import (
 	"L0/internal/database"
 	"L0/internal/generate"
 	"L0/internal/kafka"
+	"context"
+	"errors"
 	"fmt"
 	"log"
+	"net/http"
+	"os"
+	"os/signal"
+	"syscall"
 	"time"
 
 	"github.com/labstack/echo/v4"
@@ -29,6 +35,7 @@ func NewServer() *Server {
 func (s *Server) ListenAndServe(orderHand echo.HandlerFunc, allOrdersHand echo.HandlerFunc) error {
 	s.echo.GET("/orders/:order", orderHand)
 	s.echo.GET("/orders/get", allOrdersHand)
+
 	return s.echo.Start(s.port)
 }
 
@@ -65,7 +72,7 @@ func Run(cfg *config.Config) {
 			fmt.Println("Order is sent")
 			err := producer.Publish(*order) // Публикуем заказ
 			if err != nil {
-				fmt.Printf("error publishing: %v\n", err)
+				log.Printf("error publishing: %v\n", err)
 			}
 			time.Sleep(30 * time.Second)
 		}
@@ -75,7 +82,7 @@ func Run(cfg *config.Config) {
 		for {
 			order, err := consumer.Subscribe() // Подписываемся на заказы
 			if err != nil {
-				fmt.Printf("error subscribing: %v\n", err)
+				log.Printf("error subscribing: %v\n", err)
 				continue
 			}
 			fmt.Println("Order received")
@@ -86,9 +93,23 @@ func Run(cfg *config.Config) {
 	// Создаем HTTP-сервер
 	httpServer := NewServer()
 	apiController := controller.NewOrderController(cache)
-	// Запускаем HTTP-сервер
-	serverErr := httpServer.ListenAndServe(apiController.GetOrder, apiController.GetAllOrder)
-	if serverErr != nil {
-		log.Fatalf("error starting server: %v", serverErr)
+
+	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGINT, syscall.SIGTERM, syscall.SIGQUIT)
+	defer stop()
+
+	go func() {
+		err := httpServer.ListenAndServe(apiController.GetOrder, apiController.GetAllOrder)
+		if err != nil && !errors.Is(err, http.ErrServerClosed) {
+			log.Printf("HTTP server: %v", err)
+		}
+	}()
+
+	<-ctx.Done()
+	log.Print("Graceful shutdown")
+
+	// Корректное завершение работы сервера
+	if err := httpServer.echo.Shutdown(ctx); err != nil {
+		httpServer.echo.Logger.Fatal(err)
 	}
+
 }
